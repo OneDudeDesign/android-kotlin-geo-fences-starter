@@ -23,12 +23,14 @@ import android.Manifest
 import android.annotation.TargetApi
 import android.content.IntentSender
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.SavedStateViewModelFactory
 import androidx.lifecycle.ViewModelProvider
@@ -60,7 +62,9 @@ class HuntMainActivity : AppCompatActivity() {
     private lateinit var geofencingClient: GeofencingClient
     private lateinit var viewModel: GeofenceViewModel
 
-    // TODO: Step 2 add in variable to check if device is running Q or later
+    // DONE: Step 2 add in variable to check if device is running Q or later
+
+    private var versionAPI = Build.VERSION.SDK_INT
 
     // A PendingIntent for the Broadcast Receiver that handles geofence transitions.
     // DONE: Step 8 add in a pending intent
@@ -128,6 +132,24 @@ class HuntMainActivity : AppCompatActivity() {
         permissions: Array<String>,
         grantResults: IntArray
     ) {
+
+        if (requestCode == FULL_LOCATION_PERMISSION_INDEX && versionAPI >= Build.VERSION_CODES.O){
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                checkPermissionsAndStartGeofencing()
+            } else {
+
+                Toast.makeText(this,"Location denied, check settings to use the app",Toast.LENGTH_SHORT).show()
+            }
+        }
+        if (requestCode == LOCATION_PERMISSION_INDEX) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                checkPermissionsAndStartGeofencing()
+            } else {
+
+                Toast.makeText(this,"Location denied, check settings to use the app",Toast.LENGTH_SHORT).show()
+            }
+        }
+
         // TODO: Step 5 add code to handle the result of the user's permission
     }
 
@@ -197,9 +219,21 @@ class HuntMainActivity : AppCompatActivity() {
      */
     @TargetApi(29)
     private fun foregroundAndBackgroundLocationPermissionApproved(): Boolean {
-        // TODO: Step 3 replace this with code to check that the foreground and background
+        if (versionAPI >=Build.VERSION_CODES.Q) {
+            return ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            return ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        }
+        // DONE: Step 3 replace this with code to check that the foreground and background
         //  permissions were approved
-        return false
     }
 
     /*
@@ -207,7 +241,22 @@ class HuntMainActivity : AppCompatActivity() {
      */
     @TargetApi(29 )
     private fun requestForegroundAndBackgroundLocationPermissions() {
-        // TODO: Step 4 add code to request foreground and background permissions
+        if (versionAPI >= Build.VERSION_CODES.O) {
+            ActivityCompat.requestPermissions(
+                this, arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                ), FULL_LOCATION_PERMISSION_INDEX
+            )
+        } else {
+            ActivityCompat.requestPermissions(
+                this, arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION),
+                LOCATION_PERMISSION_INDEX)
+
+        }
+
+
     }
 
     /*
@@ -282,5 +331,7 @@ private const val REQUEST_FOREGROUND_AND_BACKGROUND_PERMISSION_RESULT_CODE = 33
 private const val REQUEST_FOREGROUND_ONLY_PERMISSIONS_REQUEST_CODE = 34
 private const val REQUEST_TURN_DEVICE_LOCATION_ON = 29
 private const val TAG = "HuntMainActivity"
-private const val LOCATION_PERMISSION_INDEX = 0
-private const val BACKGROUND_LOCATION_PERMISSION_INDEX = 1
+private const val LOCATION_PERMISSION_INDEX = 1
+private const val BACKGROUND_LOCATION_PERMISSION_INDEX = 2
+private const val FULL_LOCATION_PERMISSION_INDEX = 12
+
